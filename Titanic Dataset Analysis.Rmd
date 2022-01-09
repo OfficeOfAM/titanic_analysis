@@ -1,0 +1,540 @@
+---
+title: "Titanic Dataset Analysis"
+author: "Atanu, Dhairya & Nakul"
+date: "1/6/2022"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+rm(list = ls())
+gc()
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. 
+
+# **Titanic Dataset Analysis Assignment**
+
+#### This Assignment is based on basic Analysis of Titanic Dataset. We tried our best to explore the dataset. 
+
+#### **We are using R packages to load, analyse and visualize:**
+
+#### 1. readr
+#### 2. dplyr
+#### 3. stringr
+#### 4. treemap (Warning: package 'treemap' was built under R version 4.0.5)
+#### 5. tidyverse and ggplot2
+#### 6. ggpubr
+#### 7. rstatix
+
+#### **Sequence of Analysis is as follows:**
+
+#### 1. Loading dataset and packages
+#### 2. Dataset Exploration
+#### 3. Dataset cleaning
+#### 4. Dataset Basic analysis
+#### 5. Dataset Visualisation 
+#### 6. Dataset Statistical testing
+
+
+
+## Loading dataset and packages
+
+
+```{r}
+#install.packages("readr")
+library(readr)
+dataset_link = "https://raw.githubusercontent.com/OfficeOfAM/titanic_analysis/main/titanic_full.csv?token=ABO5NLBK62YPWAPHN4JSLYTB32TMG"
+df<-read_csv(url(dataset_link), show_col_types = FALSE)
+```
+
+## Dataset Exploration
+
+```{r}
+head(df)
+```
+```{r}
+names(df)
+```
+
+```{r}
+str(df)
+```
+
+```{r}
+dim(df)
+```
+
+```{r}
+colSums(is.na(df))
+```
+
+
+## Dataset Cleaning
+
+#### Some pointers we have followed while cleaning the dataset:
+
+#### 1. Removed redundant columns (PassengerId, Age, Ticket, Cabin, Embarked, WikiId,     Name_wiki, Lifeboat, Body, Pclass)
+#### 2. Aggregated Family column using SibSp and Parch
+#### 3. Extracted Countries from Hometown and Destination column and renamed as             Extracted_Hometown and Extracted Destination.
+#### 4. Family column added to distinguish between passengers travelling with family or solo.
+#### 5. Removed NA values in Boarded using Embarked column and Embarked column was removed    because both columns seems similar.
+
+
+### Removed Columns
+
+```{r}
+#install.packages("dplyr")
+names(df)
+df1 = df[,-c(1,6,9,14,19,20,11,13,21)]
+df1$tot_fam<-df1$SibSp + df1$Parch
+library(dplyr)
+df1 <- mutate(df1, family=ifelse(tot_fam>0,1,0))
+```
+
+### Display new frame
+
+```{r}
+str(df1)
+```
+
+### Cleaning NA values in Boarded using Embarked column
+
+```{r}
+xtabs(~Boarded+Embarked, data= df1, addNA = TRUE)
+df1$Boarded[is.na(df1$Boarded) & (df1$Embarked=='C')] = 'Cherbourg'
+df1$Boarded[is.na(df1$Boarded) & (df1$Embarked=='S')] = 'Southampton'
+xtabs(~Boarded+Embarked, data= df1, addNA = TRUE)
+```
+
+### Removing Embarked column
+
+```{r}
+df1 = df1[,-c(8)]
+names(df1)
+```
+
+### Extracting countries from Hometown column
+
+```{r}
+#install.packages("stringr")
+df1[1:10,c("Hometown")]
+library(stringr)
+df1$Extracted_Hometown <- str_extract(df1$Hometown,"\\w+$")
+```
+
+### Cleaning few names in new Extracted Columns
+
+```{r}
+table(df1$Extracted_Hometown)
+df1["Extracted_Hometown"][df1["Extracted_Hometown"] == "City"] <- "US"
+df1["Extracted_Hometown"][df1["Extracted_Hometown"] == "Empire"] <- "Lebanon"
+df1["Extracted_Hometown"][df1["Extracted_Hometown"] == "Unknown"] <- "US"
+```
+
+### Show new column and its frequencies
+
+```{r}
+table(df1$Extracted_Hometown)
+```
+
+### Extracting countries from Destination column
+
+```{r}
+df1$Extracted_Destination <- str_extract(df1$Destination,"\\w+$")
+table(df1$Extracted_Destination)
+df1["Extracted_Destination"][df1["Extracted_Destination"] == "City"] <- "US"
+df1["Extracted_Destination"][df1["Extracted_Destination"] == "Wisconsin"] <- "Lebanon"
+df1["Extracted_Destination"][df1["Extracted_Destination"] == "Massachusetts"] <- "US"
+table(df1$Extracted_Destination)
+```
+
+
+### Removing Hometown and Destination Columns
+
+```{r}
+df1 = df1[,-c(9,11)]
+df1 <- as.data.frame(unclass(df1),stringsAsFactors=TRUE, na.strings = c("","NA"))
+str(df1)
+```
+
+## Data Analysis
+
+### Percentage of male passengers survived
+```{r}
+names(df1)
+m_s <- nrow(df1[df1$Sex == "male" & df1$Survived == 1,])
+m <- nrow(df1[df1$Sex == "male",])
+print(paste("Percentage of males survived is ", round(m_s/m * 100,2),"%"))
+```
+
+
+#### We tried to find the number of male passengers that survived on titanic. nrow function was used to return the total number of males and total number of males that survived from data frame df1. To find the percentage we divided number of males survivors to number of males and multiplied it with hundred and got the resulting percentage as 44.48 %. 
+
+### Percentage of female passengers survived
+```{r}
+print(paste("Percentage of females survived is ", round(nrow(df1[df1$Sex == "female" & df1$Survived == 1,])/(nrow(df1[df1$Sex == "female",])) * 100,2),"%"))
+```
+#### We tried to find the number of female passengers that survived on titanic. nrow function was used to return the total number of females and total number of females that survived from data frame df1. To find the percentage we divided number of females survivors to number of females and multiplied it with hundred and got the resulting percentage as 82.62 %. 
+
+### No: of female passengers travelled alone
+```{r}
+print(paste("Total number of female passengers travelled alone is ",nrow(df1[df1$Sex == "female" & df1$family == 0,])))
+```
+#### We tried to find the number of female passengers that traveled alone on titanic. nrow function was used to return Sex as females and total number of females that didn't travel with family from data frame df1. The total number of female passengers that travelled alone was found to be 194.
+
+### No: of male passengers travelled alone
+```{r}
+print(paste("Total number of male passengers travelled alone is ",nrow(df1[df1$Sex == "male" & df1$family == 0,])))
+```
+#### We tried to find the number of male passengers that traveled alone on titanic. nrow function was used to return Sex as males and total number of males that didn't travel with family from data frame df1. The total number of male passengers that travelled alone was found to be 596.
+
+### No: of female passengers travelling with family
+```{r}
+print(paste("Total number of female passengers travelling with family  is ",nrow(df1[df1$Sex == "female" & df1$family == 1,])))
+```
+#### We tried to find the number of female passengers that traveled alone on titanic. nrow function was used to return Sex as females and total number of females that travelled with family from data frame df1. The total number of female passengers that travelled with family was found to be 272.
+
+### No: of male passengers travelling with family
+```{r}
+print(paste("Total number of male passengers travelling with family  is ",nrow(df1[df1$Sex == "male" & df1$family == 1,])))
+```
+#### We tried to find the number of male passengers that traveled alone on titanic. nrow function was used to return Sex as males and total number of males that travelled with family from data frame df1. The total number of male passengers that travelled with family was found to be 247.
+
+### No: of passengers from each boarding station
+```{r}
+print(paste("Passengers boarded from Southampton,Queenstown and Cherbourg are",nrow(df1[df1$Boarded == "Southampton",]),",",nrow(df1[df1$Boarded == "Queenstown",])," and ",nrow(df1[df1$Boarded == "Cherbourg",])," respectively"))
+```
+#### We tried to find number of passengers from each boarding station. nrow function was used to return number of passengers from Boarded. Passengers boarded from Southampton,Queenstown and Cherbourg are 918 , 119  and  262  respectively.
+
+### Difference of average ticket fares of male and female passengers
+```{r}
+mean(df1[df1$Sex == 'female', 'Fare'],na.rm=TRUE)
+mean(df1[df1$Sex == 'male', 'Fare'],na.rm=TRUE)
+print(paste("Difference of average ticket fares of male and female passengers is ", mean(df1[df1$Sex == 'male', 'Fare'],na.rm=TRUE) - mean(df1[df1$Sex == 'female', 'Fare'],na.rm=TRUE)))
+```
+#### We tried to find the average difference in ticket fares of males and females. first mean function was to get the average price of tickets of males and females from the FARES and na.rm was used to remove the NA fields. Average price of tickets of male and female passenger came out to be 46.1981 and 26.1546 respectively. By substracting them both we got 20.04 as the difference between the avaerage price of their tickets.
+
+### People below 18 years of age
+```{r}
+print(paste("No: of people below 18 years of age is ",nrow(df1[df1$Age_wiki < 18,])))
+```
+#### We tried to find the number of people below the age of 18. here nrow function was used to get the number of people below the age of 18 from the age_wiki of data frame df1. We got the number of people below the age of 18 as 190.
+
+### % of male in class 3
+```{r}
+print(paste("Percentage of male in class 3 is ", round(nrow(df1[df1$Sex == "male" & df1$Pclass == 3,])/(nrow(df1[df1$Pclass == 3,])) * 100,2),"%"))
+```
+#### We tried to find the percentage of male in class 3. Here nrow function was used to return the value from SEX as male and parameter for Pclass as 3. We divided the number of male from class 3 by total number of people in class 3 and multiplied it we hundred to find the percentage of male in class 3 as 69.53 %.
+
+### % of female in class 3
+```{r}
+print(paste("Percentage of female in class 3 is ", round(nrow(df1[df1$Sex == "female" & df1$Pclass == 3,])/(nrow(df1[df1$Pclass == 3,])) * 100,2),"%"))
+```
+#### We tried to find the percentage of female in class 3. Here nrow function was used to return the value from SEX as female and parameter for Pclass as 3. We divided the number of female from class 3 by total number of people in class 3 and multiplied it we hundred to find the percentage of female in class 3 as 30.47 %.
+
+### From where majority people boarded
+```{r}
+board_list <- c(nrow(df1[df1$Boarded == "Southampton",]),nrow(df1[df1$Boarded == "Queenstown",]),nrow(df1[df1$Boarded == "Cherbourg",]))
+boardings <- c("Southampton","Queenstown","Cherbourg")
+ind_max <- which(board_list == max(board_list))
+print(paste("Maximum passengers boarded from ",boardings[ind_max]))
+```
+```{r}
+#install.packages("treemap")
+library(treemap)
+sub_df3 = as.data.frame(table(df1$Boarded))
+# Basic Treemap
+treemap(sub_df3, 
+ index="Var1", 
+ vSize="Freq", 
+ vColor="Freq",
+ type="value",
+ title = "Passengers Hometown",
+ palette="RdPu", 
+ border.col ="white"
+)
+```
+
+#### We tried to find from where the majority of passengers boarded. Here we created a vector with the values of people from each boarding station using nrow. we then indexed the one with highest value from boardings.We found the maximum people boarded from Southampton. Treemap was used for graphical representation and the graph for the same can be seen above.
+
+### How many adult/child passengers survived?
+```{r}
+
+print(paste("No: of adults survived is ",nrow(df1[df1$Age_wiki >= 18 & df1$Survived == 1,])))
+print(paste("No: of children survived is ",nrow(df1[df1$Age_wiki < 18 & df1$Survived == 1,])))
+```
+#### We tried to find the number of adults and children that survived. nrow function was used to get the count from age_wiki. We found the number of male survivors to be 646 and children to be 118.
+
+### How many had their hometown as British india
+```{r}
+table(df1$Extracted_Hometown)
+print(abs(nrow(df1[is.na(df1$Extracted_Hometown),]) - nrow(df1[df1$Extracted_Hometown == 'India',])))
+```
+#### We tried to find the number of people who had their hometown as british india. table function was used for representation. We extracted the country of origin while data cleaning and nrow function was used to return the value as 'India'. We found the people with their hometown as Indis to be 3.
+
+### Maximum and minimum age travelled
+```{r}
+print(paste("Maximum age is ", max(df1$Age_wiki,na.rm = TRUE)))
+print(paste("Minimum age is ", min(df1$Age_wiki,na.rm = TRUE)))
+```
+#### We tried to find the maximum age and minimum age from the list of travellers. max and min function was used to extract maximum and minimum value from age_wiki and na.ra was used to remove NA values. The maximum and minimum age was found to 74 and 0.17 years respectively.
+
+### Average age of survived
+```{r}
+print(paste("Average age of survived is", round(mean(df1[df1$Survived == 1, 'Age_wiki'],na.rm=TRUE),2)))
+```
+#### We tried to find average age of survivors. mean function was used from the data frame df1 and extracted the value of age and set the parameter for survivor as 1. is.na was used to emove NA values. The average age of people that survived was found to be 28.44 years.
+
+### How many had their destination as Canada
+```{r}
+table(df1$Extracted_Destination)
+print(abs(nrow(df1[is.na(df1$Extracted_Destination),]) - nrow(df1[df1$Extracted_Destination == 'Canada',])))
+```
+#### We tried to find the number of people who had their destination as canada. table function was used for tabular representation. We extracted the destination country while data cleaning and nrow function was used to return the value as 'Canada'. We found the people with their hometown as 125.
+
+### No: of survivors from US
+```{r}
+print(paste("No: of survivors from US is ", nrow(na.omit(df1[df1$Extracted_Hometown == "US" & df1$Survived == 1,]))))
+```
+#### We tried to find the number of survivors from US. nrow function was used on data frame df1 the parameter for extracted_hometown as 'US' and survived as 1. na.omit was used to remove NA values. Number of survivors from US was found to be 116.
+
+### No: of survivors from Europe
+```{r}
+print(paste("No: of survivors from Europe", nrow(na.omit(df1[(df1$Extracted_Hometown == "Austria" | df1$Extracted_Hometown == "Belgium" | df1$Extracted_Hometown == "Croatia" | df1$Extracted_Hometown == "Denmark" | df1$Extracted_Hometown == "Engalnd" | df1$Extracted_Hometown == "Finland" | df1$Extracted_Hometown == "France" | df1$Extracted_Hometown == "Germany" | df1$Extracted_Hometown == "Italy" | df1$Extracted_Hometown == "Ireland" | df1$Extracted_Hometown == "Greece" | df1$Extracted_Hometown == "Netherlands" | df1$Extracted_Hometown == "Portugal" | df1$Extracted_Hometown == "Norway" | df1$Extracted_Hometown == "Scotland" | df1$Extracted_Hometown == "Switzerland" | df1$Extracted_Hometown == "Turkey" | df1$Extracted_Hometown == "Sweden" )& df1$Survived == 1,])) ))
+```
+#### We tried to find the number of survivors from Europe. nrow function was used on data frame df1 the parameter for extracted_hometown as 'Austria, Belgium, denmark, Finland, germany, Ireland, Netherlands, Norway, Switzerland, Sweden, Croatia, England, France, Italy, Greece, Portugal, Scotland, Turkey' and survived as 1. na.omit was used to remove NA values. Number of survivors from Europe was found to be 84. Treemap was used for graphical representation.
+
+### Hometown visualisation
+```{r}
+library(treemap)
+sub_df1 = as.data.frame(table(df1$Extracted_Hometown))
+# Basic Treemap
+treemap(sub_df1, 
+ index="Var1", 
+ vSize="Freq", 
+ vColor="Freq",
+ type="value",
+ title = "Passengers Hometown",
+ palette="BuGn", 
+ border.col ="white"
+)
+```
+
+#### We can see from the above visualisation clearly that US had the most passengers hometown following England, Ireland, Sweden, Lebanon and so on.
+
+#### Strinking fact which is coming out from the treemap is that except US and Europe, Lebanon Syria had many passengers from Middle East.
+
+
+## Destination visualisation
+```{r}
+library(treemap)
+sub_df2 = as.data.frame(table(df1$Extracted_Destination))
+# Basic Treemap
+treemap(sub_df2, 
+ index="Var1", 
+ vSize="Freq", 
+ vColor="Freq",
+ type="value",
+ title = "Passengers Destination",
+ palette="RdBu", 
+ border.col ="white"
+)
+```
+
+#### It is evident that majority of the passengers were travelling to US and some to few others but they were travelling to American Continent.
+
+
+## Dashboard
+```{r}
+par(mfrow=c(2,2), bg="lightblue")
+
+# Family Members
+hist(df1$tot_fam, main="Histogram of Family Members", xlab = "Various Groups of Family",col = "green",border = "black", xlim = c(0,10), breaks = 20)
+
+# Passenger Fare
+hist(df1$Fare, main="Histogram of Passenger Fare", xlab = "Passenger Fare",col = "brown",border = "black", xlim = c(0,600), breaks = 20) 
+
+# Passenger Age
+hist(df1$Age_wiki, main="Histogram of Passengers Age", xlab = "Passenger Age",col = "yellow",border = "black", xlim = c(0,90), breaks = 20)
+
+# Solor or Family
+hist(df1$family, main="Histogram of Solo or Family", xlab = "Solo or with Family",col = "orange",border = "black", xlim = c(0,1),
+   breaks = 10)
+```
+
+#### Some points we can understand from the above dashboard are:
+#### 1. Most passengers were travelling solo.
+#### 2. So solo passengers contrributed the most.
+#### 3. We can also understand the majority of the passengers were between 20 - 40 years of age.
+#### 4. Solo passengers were higher than passengers travelling with family.
+
+
+```{r}
+#install.packages("tidyverse","ggpubr","rstatix","ggplot2")
+library(tidyverse)
+library(ggpubr)
+library(rstatix)
+library(ggplot2)
+
+```
+
+### Statistical Testing
+
+#### We have tried to do T, Annova and Chi-Sqr test.
+
+#### **T Test**
+
+```{r}
+sex_fare <- na.omit(df1[,c("Sex","Fare")])
+sex_fare %>%
+  group_by(Sex) %>%
+  get_summary_stats(Fare, type = "mean_sd")
+```
+
+
+```{r}
+t.test(Fare~Sex, data = sex_fare)
+
+```
+
+#### We did a hypothesis testing on mean difference of fares of males nd females. 
+
+#### H0: Difference in means between group female and group male is equal to 0
+#### H1: Difference in means between group female and group male is not equal to 0. 
+
+#### T.test function was used to run a t test for the same and we found that p-value was less than alpha value, hence we reject the null hypothesis and conclude that true difference in fare of means between group female and group male is not equal to 0. 
+
+#### GGplot was used for graphical representation which can be seen below.
+
+```{r}
+ggboxplot(sex_fare, x = "Sex", y = "Fare", 
+          color = "Sex", palette = c("#00AFBB", "#E7B800"),
+        ylab = "Fare", xlab = "Sex")
+```
+
+#### **ANOVA**
+```{r}
+boarded_fare <- df1 %>% 
+  select(Boarded,Fare) %>%
+  filter(Boarded == "Belfast" | Boarded == "Cherbourg" | Boarded == "Queenstown" | Boarded == "Southampton")
+
+boarded_fare %>%
+  group_by(Boarded) %>%
+  get_summary_stats(Fare, type = "mean_sd")
+```
+```{r}
+res_aov <- aov(Fare~Boarded, data=boarded_fare)
+summary(res_aov)
+```
+
+#### We did a hypothesis testing on the mean fare price accross boarding stations. 
+
+#### H0: All boarding station had same mean fare price.  
+#### H1: All boarding station did not have the same mean fare price. 
+
+#### We ran an annova test to determine the same and alpha we considered was 0.05. We found that p-value was less than alpha hence we can conclude that mean fare price across the boarding station is not the same. 
+
+#### GGplot was used was graphical representation which can be seen below.
+
+```{r}
+ggboxplot(boarded_fare, x = "Boarded", y = "Fare", 
+          color = "Boarded", palette = c("#00AFBB", "#E7B800", "#FC4E07","green"),
+          ylab = "Fare", xlab = "Boarded From")
+```
+
+```{r}
+boarded_age <- na.omit(df1[,c("Boarded","Age_wiki")])
+boarded_age <- df1 %>% 
+  select(Boarded,Age_wiki) %>%
+  filter(Boarded == "Belfast" | Boarded == "Cherbourg" | Boarded == "Queenstown" | Boarded == "Southampton")
+
+boarded_age %>%
+  group_by(Boarded) %>%
+  get_summary_stats(Age_wiki, type = "mean_sd")
+```
+
+```{r}
+res_aov <- aov(Age_wiki~Boarded, data=boarded_age)
+summary(res_aov)
+```
+
+#### We did a hypothesis testing on the mean age accross boarding stations. 
+
+#### H0: All boarding station had same mean age of passengers.
+#### H1: All boarding station did not have the same mean age of passengers. 
+
+#### We ran an annova test to determine the same and alpha we considered was 0.05. We found that p-value was less than alpha hence we can conclude that mean age of passengers accross the boarding station is not the same. 
+
+#### GGplot was used was graphical representation which can be seen below.
+
+
+```{r}
+ggboxplot(boarded_age, x = "Boarded", y = "Age_wiki", 
+          color = "Boarded", palette = c("#00AFBB", "#E7B800", "#FC4E07","green"),
+          ylab = "Age", xlab = "Boarded From")
+```
+
+#### **Chi-Square Test**
+```{r}
+chisq.test(x = table(df1$Sex, df1$Boarded))
+```
+
+#### We did a hypothesis testing on influence of gender on boarding station. 
+
+#### H0: Choice of boarding station is independent of gender.
+#### H1: Choice of boarding station was dependent of gender. 
+
+#### Alpha value was considered as 0.05 and we found that p-value was less than alpha and we can reject Null. 
+#### Hence, we conclude that choice of boarding station is dependent of Gender.
+
+
+## Statistical Dashboard
+
+```{r}
+require(gridExtra)
+
+gg2 <- ggboxplot(sex_fare, x = "Sex", y = "Fare", 
+          color = "Sex", palette = c("#00AFBB", "#E7B800"),
+        ylab = "Fare", xlab = "Sex") 
+
+gg3 <- ggplot(data = boarded_fare, aes(x = Fare, y = Boarded)) + geom_boxplot(color = 
+  c("#00AFBB", "#E7B800", "#FC4E07","green")) + xlab("Fare") + ylab("Boarded") 
+
+gg4 <- ggplot(data = boarded_age, aes(x = Age_wiki, y = Boarded)) + geom_boxplot(color = 
+  c("#00AFBB", "#E7B800", "#FC4E07","green")) + xlab("Age") + ylab("Boarded")
+
+grid.arrange(gg2, gg3, gg4, nrow=2, ncol=2)
+```
+
+## **Conclusion:**
+
+#### (1) The percentage of male that survived was found to be 44.48 %.
+#### (2) The percentage of female that survived was found to be 82.61 %.
+#### (3) Total 194 females had travelled alone. 
+#### (4) Total 596 Males had travelled alone. 
+#### (5) Total of 272 females had travelled with their families. 
+#### (6) Total of 247 males had travelled with their family. 
+#### (7) A total of 918, 119 and 262 passengers had boarded from Southampton, Queenstown and Cherbourg respectively. 
+#### (8) Difference of average fare price between male and female was found to be 20.04. 
+#### (9) 190 people were below the age of 18. 
+#### (10) The percentage of male in class 3 was found to be 69.53 %. 
+#### (11) The percentage of female in class 3 was found to be 30.46 %. 
+#### (12) Maximum passengers had boarded from Southampton. 
+#### (13) A total of 646 adults and 118 children had survived. 
+#### (14) 3 people had their hometown as British India. 
+#### (15) 74 was the maximum and 0.17 was the minimum age among travelers. 
+#### (16) 28.44 was the average age of survivors. 
+#### (17) A total of 125 people had their destination as Canada. 
+#### (18) 116 was the number of survivors from US. 
+#### (19) 84 was the number of survivors from Europe. 
+#### (20) With statistical testing we found that the difference in mean of fare of males and female was not equal to 0. 
+#### (21) With statistical testing we found that mean fare price across the boarding station was not the same. 
+#### (22) With statistical testing we found that mean age of passengers across boarding stations is not the same. 
+#### (23) Finally, the choice of boarding station was dependent on gender.
